@@ -170,8 +170,8 @@ android {
 
         create("xw4GPlay") {
             dimension = "variant"
-            applicationId = "de.7fw.android.xw4GPTest"
-			manifestPlaceholders["APP_ID"] = "de.7fw.android.xw4"
+            applicationId = "de.fcw.android.xw4GPTest"
+			manifestPlaceholders["APP_ID"] = "de.fcw.android.xw4"
             resValue( "string", "app_name", "DoNotRelease" )
             buildConfigField( "boolean", "NON_RELEASE", "true" )
             buildConfigField( "boolean", "WIDIR_ENABLED", "false" )
@@ -185,7 +185,7 @@ android {
 
         create("xw4fdroid") {
             dimension = "variant"
-            applicationId = "de.7fw.android.xw4"
+            applicationId = "de.fcw.android.xw4"
 			manifestPlaceholders["APP_ID"] = applicationId.toString()
             resValue( "string", "app_name", "CrossWords" )
             resValue( "string", "nbs_port", "3344" )
@@ -203,7 +203,7 @@ android {
             dimension = "variant"
 
             buildConfigField( "String", "DB_NAME", "\"xwddb\"" )
-            applicationId = "de.7fw.android.xw4def"
+            applicationId = "de.fcw.android.xw4def"
             resValue( "string", "app_name", "CrossDef" )
             resValue( "string", "nbs_port", "3345" )
             resValue( "string", "invite_prefix", "/andd/" )
@@ -221,7 +221,7 @@ android {
 
         create("xw4dGPlay") {
             dimension = "variant"
-            applicationId = "de.7fw.android.xw4def"
+            applicationId = "de.fcw.android.xw4def"
             buildConfigField( "String", "DB_NAME", "\"xwddb\"" )
             resValue( "string", "app_name", "CrossDef" )
             resValue( "string", "invite_prefix", "/andd/" )
@@ -239,7 +239,7 @@ android {
 
         create("xw4Foss") {
             dimension = "variant"
-            applicationId = "de.7fw.android.xw4"
+            applicationId = "de.fcw.android.xw4"
 			manifestPlaceholders["APP_ID"] = applicationId.toString()
             resValue( "string", "app_name", "CrossWords" )
             resValue( "string", "nbs_port", "3344" )

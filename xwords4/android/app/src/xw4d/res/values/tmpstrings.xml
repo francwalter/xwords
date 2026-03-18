@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
+  <!-- This file is for strings that aren't ready for localization
+       yet, probably because I'm not finished designing whatever they're part of -->
+
+  <string name="dup_allscores_fmt">All scores: %1$s</string>
+
+  <!-- Debug-only: menu to remove quashed marking from a game (in case
+       the quashing was accidental) -->
+  <string name="menu_unquash">Unquash</string>
+
+  <string name="button_copyAddr">Copy address</string>
+
+</resources>

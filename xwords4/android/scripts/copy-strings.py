@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/env python3
 
 # Go through all the res_src strings.xml files, and copy them over
 # into the world where they'll get used in a build. This is meant to
