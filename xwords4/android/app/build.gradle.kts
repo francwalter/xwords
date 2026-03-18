@@ -170,8 +170,8 @@ android {
 
         create("xw4GPlay") {
             dimension = "variant"
-            applicationId = "org.eehouse.android.xw4GPTest"
-			manifestPlaceholders["APP_ID"] = "org.eehouse.android.xw4"
+            applicationId = "de.7fw.android.xw4GPTest"
+			manifestPlaceholders["APP_ID"] = "de.7fw.android.xw4"
             resValue( "string", "app_name", "DoNotRelease" )
             buildConfigField( "boolean", "NON_RELEASE", "true" )
             buildConfigField( "boolean", "WIDIR_ENABLED", "false" )
@@ -185,7 +185,7 @@ android {
 
         create("xw4fdroid") {
             dimension = "variant"
-            applicationId = "org.eehouse.android.xw4"
+            applicationId = "de.7fw.android.xw4"
 			manifestPlaceholders["APP_ID"] = applicationId.toString()
             resValue( "string", "app_name", "CrossWords" )
             resValue( "string", "nbs_port", "3344" )
@@ -203,8 +203,8 @@ android {
             dimension = "variant"
 
             buildConfigField( "String", "DB_NAME", "\"xwddb\"" )
-            applicationId = "org.eehouse.android.xw4dbg"
-            resValue( "string", "app_name", "CrossDeb" )
+            applicationId = "de.7fw.android.xw4def"
+            resValue( "string", "app_name", "CrossDef" )
             resValue( "string", "nbs_port", "3345" )
             resValue( "string", "invite_prefix", "/andd/" )
 			resValue( "string", "conf_prefix", "/cnfd/" )
@@ -221,9 +221,9 @@ android {
 
         create("xw4dGPlay") {
             dimension = "variant"
-            applicationId = "org.eehouse.android.xw4dbg"
+            applicationId = "de.7fw.android.xw4def"
             buildConfigField( "String", "DB_NAME", "\"xwddb\"" )
-            resValue( "string", "app_name", "CrossDeb" )
+            resValue( "string", "app_name", "CrossDef" )
             resValue( "string", "invite_prefix", "/andd/" )
             resValue( "string", "conf_prefix", "/cnfd/" )
 			resValue( "string", "newgame_scheme", "newxwgamed" )
@@ -239,7 +239,7 @@ android {
 
         create("xw4Foss") {
             dimension = "variant"
-            applicationId = "org.eehouse.android.xw4"
+            applicationId = "de.7fw.android.xw4"
 			manifestPlaceholders["APP_ID"] = applicationId.toString()
             resValue( "string", "app_name", "CrossWords" )
             resValue( "string", "nbs_port", "3344" )
@@ -471,13 +471,13 @@ tasks.named("preBuild") {
 
 tasks.create<Exec>("copyStringsXw4D") {
     workingDir( "./" )
-    environment.put("APPNAME", "CrossDeb")
+    environment.put("APPNAME", "CrossDef")
     commandLine( "make", "-f", "../scripts/Variant.mk", "src/xw4d/res/values/strings.xml", "src/xw4d/res/values/tmpstrings.xml" )
 }
 
 tasks.create<Exec>("copyStringsXw4DGPlay" ) {
     workingDir( "./" )
-    environment.put("APPNAME", "CrossDeb")
+    environment.put("APPNAME", "CrossDef")
     commandLine( "make", "-f", "../scripts/Variant.mk", "src/xw4dGPlay/res/values/strings.xml", "src/xw4dGPlay/res/values/tmpstrings.xml" )
 }
 
