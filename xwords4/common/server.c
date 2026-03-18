@@ -5244,7 +5244,7 @@ server_formatRemainingTiles( ServerCtxt* server, XWEnv xwe, XWStreamCtxt* stream
         XP_MEMSET( counts, 0, sizeof(counts) );
         model_countAllTrayTiles( server->vol.model, counts, player );
 
-        for ( cntsBuf[0] = '\0', offset = 0, tile = 0; 
+        for ( cntsBuf[0] = '\0', offset = 0, tile = 0;
               offset < sizeof(cntsBuf); ) {
             XP_U16 count = pool_getNTilesLeftFor( pool, tile ) + counts[tile];
             XP_Bool hasCount = count > 0;
@@ -5254,13 +5254,13 @@ server_formatRemainingTiles( ServerCtxt* server, XWEnv xwe, XWStreamCtxt* stream
                 const XP_UCHAR* face = dict_getTileString( dict, tile );
 
                 for ( ; ; ) {
-                    offset += XP_SNPRINTF( &cntsBuf[offset], 
-                                           sizeof(cntsBuf) - offset, "%s", 
+                    offset += XP_SNPRINTF( &cntsBuf[offset],
+                                           sizeof(cntsBuf) - offset, "%s",
                                            face );
                     if ( --count == 0 ) {
                         break;
                     }
-                    offset += XP_SNPRINTF( &cntsBuf[offset], 
+                    offset += XP_SNPRINTF( &cntsBuf[offset],
                                            sizeof(cntsBuf) - offset, "." );
                 }
             }
@@ -5268,7 +5268,7 @@ server_formatRemainingTiles( ServerCtxt* server, XWEnv xwe, XWStreamCtxt* stream
             if ( ++tile >= nChars ) {
                 break;
             } else if ( hasCount ) {
-                offset += XP_SNPRINTF( &cntsBuf[offset], 
+                offset += XP_SNPRINTF( &cntsBuf[offset],
                                        sizeof(cntsBuf) - offset, "   " );
             }
             XP_ASSERT( offset < sizeof(cntsBuf) );
@@ -5279,6 +5279,37 @@ server_formatRemainingTiles( ServerCtxt* server, XWEnv xwe, XWStreamCtxt* stream
         XP_SNPRINTF( buf, sizeof(buf), fmt, nLeft );
         stream_catString( stream, buf );
 
+        stream_catString( stream, cntsBuf );
+// fcw: 2026-03-15: Änderungen von Gemini in PhpStorm auf MacBook, zum Anzeigen des Pool zusätzlich
+        stream_catString( stream, "\n\nTiles in pool only:\n" );
+        for ( cntsBuf[0] = '\0', offset = 0, tile = 0;
+              offset < sizeof(cntsBuf); ) {
+            XP_U16 count = pool_getNTilesLeftFor( pool, tile );
+            XP_Bool hasCount = count > 0;
+
+            if ( hasCount ) {
+                const XP_UCHAR* face = dict_getTileString( dict, tile );
+
+                for ( ; ; ) {
+                    offset += XP_SNPRINTF( &cntsBuf[offset],
+                                           sizeof(cntsBuf) - offset, "%s",
+                                           face );
+                    if ( --count == 0 ) {
+                        break;
+                    }
+                    offset += XP_SNPRINTF( &cntsBuf[offset],
+                                           sizeof(cntsBuf) - offset, "." );
+                }
+            }
+
+            if ( ++tile >= nChars ) {
+                break;
+            } else if ( hasCount ) {
+                offset += XP_SNPRINTF( &cntsBuf[offset],
+                                       sizeof(cntsBuf) - offset, "   " );
+            }
+            XP_ASSERT( offset < sizeof(cntsBuf) );
+        }
         stream_catString( stream, cntsBuf );
     }
 } /* server_formatRemainingTiles */
