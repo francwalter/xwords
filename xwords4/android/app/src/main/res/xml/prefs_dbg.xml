@@ -49,7 +49,7 @@
          directory that doesn't exist, allow users to set it.  Mine:
          /sdcard/external_sd/download     
     -->
-    <org.eehouse.android.xw4.XWEditTextPreference 
+    <org.eehouse.android.xw4.XWEditTextPreference
         android:key="@string/key_download_path"
         android:title="@string/download_path_title"
         android:hint="@string/download_path_hint"

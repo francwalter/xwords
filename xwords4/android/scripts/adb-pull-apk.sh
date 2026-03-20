@@ -2,7 +2,7 @@
 
 set -e -u
 
-APP_ID=org.eehouse.android.xw4
+APP_ID=de.fcw.android.xw4
 
 APK_PATH=$(adb shell pm path $APP_ID)
 APK_PATH=${APK_PATH/package:/}

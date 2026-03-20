@@ -17,9 +17,53 @@
  */
 /* #include <assert.h> */
 
+#ifdef UNIT_TESTING
+/* Minimal stubs so this file can be compiled standalone for unit tests.
+ * These definitions are intentionally small and only cover what's needed
+ * by the code in this file. They must NOT be used for production builds.
+ */
+#include <stdlib.h>
+#include <stdio.h>
+#include <string.h>
+#include <assert.h>
+
+typedef unsigned char XP_U8;
+typedef unsigned short XP_U16;
+typedef short XP_S16;
+typedef unsigned char XP_Bool;
+typedef unsigned char Tile;
+typedef char XP_UCHAR;
+
+#define XP_MALLOC(pool, n) malloc(n)
+#define XP_FREE(pool, p) free(p)
+#define XP_FREEP(pool, p) do { if (*(p) != NULL) { free(*(p)); *(p) = NULL; } } while (0)
+#define XP_MEMSET(dest, val, n) memset((dest),(val),(n))
+#define XP_MEMCPY(dest, src, n) memcpy((dest),(src),(n))
+#define XP_SNPRINTF snprintf
+#define XP_LOGFF(...)
+#define XP_LOGF(...)
+#define XP_ASSERT(x) do { if (!(x)) { /*assert(x);*/ } } while(0)
+#define XP_RANDOM() (rand())
+#define VSIZE(arr) (sizeof(arr)/sizeof((arr)[0]))
+
+#define MAX_TRAY_TILES 9
+
+/* mempool macros used in code; keep them inert for tests */
+#define MPSLOT
+#define MPASSIGN(a,b) ((void)0)
+#define MPFORMAL_NOCOMMA
+#define MPFORMAL
+#define MPPARM_NOCOMMA(x)
+
+typedef struct TrayTileSet { XP_U16 nTiles; Tile tiles[MAX_TRAY_TILES]; } TrayTileSet;
+typedef struct DictionaryCtxt DictionaryCtxt; /* opaque for test code */
+typedef struct XWStreamCtxt XWStreamCtxt;
+
+#else
 #include "pool.h"
 #include "dictnry.h"
 #include "xwstream.h"
+#endif
 
 // #define BLANKS_FIRST 1
 
@@ -71,11 +115,23 @@ pool_makeFromStream( MPFORMAL XWStreamCtxt* stream )
 {
     PoolContext* pool = pool_make( MPPARM_NOCOMMA(mpool) );
 
+    if ( NULL == pool ) {
+        return NULL;
+    }
+
     pool->numTilesLeft = stream_getU16( stream );
     pool->numFaces = stream_getU16( stream );
+
+    /* allocate lettersLeft and check for OOM */
     pool->lettersLeft = (XP_U8*)
         XP_MALLOC( mpool, pool->numFaces * sizeof(pool->lettersLeft[0]) );
-    stream_getBytes( stream, pool->lettersLeft, 
+    if ( NULL == pool->lettersLeft ) {
+        /* allocation failed: clean up and return NULL */
+        XP_FREE( pool->mpool, pool );
+        return NULL;
+    }
+
+    stream_getBytes( stream, pool->lettersLeft,
                      (XP_U16)(pool->numFaces * sizeof(pool->lettersLeft[0])) );
 
     return pool;
@@ -106,13 +162,19 @@ getNthPoolTile( PoolContext* pool, short index )
     } else {
         XP_S16 nextCount = index;
         Tile curLetter;
-        for ( curLetter = 0; ; ++curLetter ) {
+        for ( curLetter = 0; curLetter < pool->numFaces; ++curLetter ) {
             nextCount -= pool->lettersLeft[(short)curLetter];
             if ( nextCount < 0 ) {
                 XP_ASSERT( pool->lettersLeft[(short)curLetter] > 0 );
                 result = curLetter;
                 break;
             }
+        }
+        /* If we fell out of the loop, something inconsistent happened; guard
+           against out-of-bounds by returning the last face (or 0). */
+        if ( curLetter >= pool->numFaces ) {
+            XP_LOGFF( "getNthPoolTile: index out of range or inconsistent counts" );
+            result = (pool->numFaces > 0) ? (pool->numFaces - 1) : 0;
         }
     }
     return result;
@@ -129,6 +191,10 @@ getRandomTile( PoolContext* pool )
      * top thereafter.
      */
     
+    if ( NULL == pool || pool->numTilesLeft == 0 ) {
+        XP_LOGFF( "getRandomTile called on empty or NULL pool" );
+        return 0;
+    }
 #if defined PLATFORM_PALM && ! defined XW_TARGET_PNO
     XP_U16 rr = XP_RANDOM();
 #else
@@ -145,7 +211,20 @@ getRandomTile( PoolContext* pool )
 void
 pool_requestTiles( PoolContext* pool, Tile* tiles, XP_U16* maxNum )
 {
-    XP_S16 numWanted = *maxNum;
+    if ( NULL == pool || NULL == tiles || NULL == maxNum ) {
+        return;
+    }
+
+    int numWanted = (int)(*maxNum);
+    if ( numWanted < 0 ) {
+        return;
+    }
+    /* Cap requests to a reasonable maximum (tray size) to avoid weird large
+       values coming from callers */
+    if ( numWanted > MAX_TRAY_TILES ) {
+        numWanted = MAX_TRAY_TILES;
+    }
+
     XP_U16 numWritten = 0;
     Tile* base = tiles;
 
@@ -164,11 +243,11 @@ pool_requestTiles( PoolContext* pool, Tile* tiles, XP_U16* maxNum )
         ++numWritten;
     }
     *maxNum = numWritten;
-
+    // fcw: write drawn tiles to logcat
     if ( numWritten > 0 ) {
         char buf[128];
         int offset = 0;
-        offset += XP_SNPRINTF( buf + offset, sizeof(buf) - offset, "Drawn %d tiles: ", numWritten );
+        offset += XP_SNPRINTF( buf + offset, sizeof(buf) - offset, "fcw: Drawn %d tiles: ", numWritten );
         for ( XP_U16 i = 0; i < numWritten; i++ ) {
             offset += XP_SNPRINTF( buf + offset, sizeof(buf) - offset, "%d ", base[i] );
         }
@@ -185,12 +264,19 @@ pool_requestTiles( PoolContext* pool, Tile* tiles, XP_U16* maxNum )
 void
 pool_replaceTiles( PoolContext* pool, const TrayTileSet* tiles )
 {
+    if ( NULL == pool || NULL == tiles ) {
+        return;
+    }
     pool_replaceTiles2( pool, tiles->nTiles, tiles->tiles );
 }
 
 void
 pool_replaceTiles2( PoolContext* pool, XP_U16 nTiles, const Tile* tilesP )
 {
+    if ( NULL == pool || NULL == tilesP ) {
+        return;
+    }
+
     while ( nTiles-- ) {
         Tile tile = *tilesP++; /* do I need to filter off high bits? */
 
@@ -205,6 +291,10 @@ pool_replaceTiles2( PoolContext* pool, XP_U16 nTiles, const Tile* tilesP )
 void
 pool_removeTiles( PoolContext* pool, const TrayTileSet* tiles )
 {
+    if ( NULL == pool || NULL == tiles ) {
+        return;
+    }
+
     XP_U16 nTiles = tiles->nTiles;
     const Tile* tilesP = tiles->tiles;
 
@@ -226,14 +316,25 @@ pool_removeTiles( PoolContext* pool, const TrayTileSet* tiles )
 XP_Bool
 pool_containsTiles( const PoolContext* pool, const TrayTileSet* tiles )
 {
+    if ( NULL == pool || NULL == tiles ) {
+        return XP_FALSE;
+    }
+
     XP_Bool allThere = XP_TRUE;
     XP_U16 ii;
-    XP_U8 counts[pool->numFaces];
-    XP_MEMCPY( counts, pool->lettersLeft, sizeof(counts) );
+    /* avoid VLA on the stack: allocate temporary counts on the heap */
+    XP_U8* counts = (XP_U8*)XP_MALLOC( pool->mpool, pool->numFaces * sizeof(pool->lettersLeft[0]) );
+    if ( NULL == counts ) {
+        /* Allocation failed: conservatively report false (not all present) */
+        return XP_FALSE;
+    }
+    XP_MEMCPY( counts, pool->lettersLeft, pool->numFaces * sizeof(pool->lettersLeft[0]) );
 
     for ( ii = 0; allThere && ii < tiles->nTiles; ++ii ) {
         allThere = 0 < counts[tiles->tiles[ii]]--;
     }
+
+    XP_FREE( pool->mpool, counts );
 
     return allThere;
 }
@@ -248,6 +349,12 @@ pool_getNTilesLeft( const PoolContext* pool )
 XP_U16
 pool_getNTilesLeftFor( const PoolContext* pool, Tile tile )
 {
+    if ( NULL == pool ) {
+        return 0;
+    }
+    if ( tile >= pool->numFaces ) {
+        return 0;
+    }
     return pool->lettersLeft[tile];
 } /* pool_remainingTileCount */
 
@@ -258,9 +365,17 @@ pool_initFromDict( PoolContext* pool, const DictionaryCtxt* dict, XP_U16 nCols )
 
     XP_FREEP( pool->mpool, &pool->lettersLeft );
 
+    /* allocate lettersLeft on the heap, check for allocation failure */
     pool->lettersLeft
         = (XP_U8*)XP_MALLOC( pool->mpool, 
                              numFaces * sizeof(pool->lettersLeft[0]) );
+    if ( NULL == pool->lettersLeft ) {
+        /* Out of memory: set counts to zero and numFaces to 0 to keep pool in a
+           consistent state. Callers should handle an empty/invalid pool. */
+        pool->numTilesLeft = 0;
+        pool->numFaces = 0;
+        return;
+    }
     pool->numTilesLeft = 0;
 
     for ( Tile tile = 0; tile < numFaces; ++tile ) {

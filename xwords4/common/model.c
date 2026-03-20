@@ -76,7 +76,12 @@ static void loadPlayerCtxt( const ModelCtxt* model, XWStreamCtxt* stream,
 static void writePlayerCtxt( const ModelCtxt* model, XWStreamCtxt* stream, 
                              const PlayerCtxt* pc );
 static void recordWord( const WNParams* wnp, void *closure );
-#ifdef DEBUG 
+
+/* forward declaration so we can call formatTray earlier in the file */
+static XP_UCHAR* formatTray( const TrayTileSet* tiles, const DictionaryCtxt* dict,
+                             XP_UCHAR* buf, XP_U16 bufSize, XP_Bool keepHidden );
+
+#ifdef DEBUG
 typedef struct _DiffTurnState {
     XP_S16 lastPlayerNum;
     XP_S16 lastMoveNum;
@@ -1955,8 +1960,17 @@ commitTurn( ModelCtxt* model, XWEnv xwe, XP_S16 turn, const TrayTileSet* newTile
     player->nUndone = 0;
 
     /* Move new tiles into tray */
+    /* Log tiles assigned as part of a move so clients will show draws
+       that happen after game start (opponent draws). */
+    if ( newTiles->nTiles > 0 ) {
+        char buf[128];
+        char traybuf[64];
+        formatTray( newTiles, model_getDictionary(model), (XP_UCHAR*)traybuf, VSIZE(traybuf), XP_FALSE );
+        XP_SNPRINTF( buf, sizeof(buf), "fcw: Assigned %d tiles to player %d: %s", newTiles->nTiles, turn, traybuf );
+        XP_LOGFF( "%s", buf );
+    }
     for ( int ii = newTiles->nTiles - 1; ii >= 0; --ii ) {
-        model_addPlayerTile( model, turn, -1, newTiles->tiles[ii] );
+         model_addPlayerTile( model, turn, -1, newTiles->tiles[ii] );
     }
 
     return score;
@@ -2135,8 +2149,17 @@ model_addNewTiles( ModelCtxt* model, XP_S16 turn, const TrayTileSet* tiles )
 {
     const Tile* tilep = tiles->tiles;
     XP_U16 nTiles = tiles->nTiles;
+    /* Log assigned/new tiles so clients will show draws that happen during play (not only the host's pool draw logs). Keeps format similar
+       to pool_requestTiles. */
+    if ( tiles->nTiles > 0 ) {
+        char buf[128];
+        char traybuf[64];
+        formatTray( tiles, model_getDictionary(model), (XP_UCHAR*)traybuf, VSIZE(traybuf), XP_FALSE );
+        XP_SNPRINTF( buf, sizeof(buf), "fcw: Assigned %d tiles to player %d: %s", tiles->nTiles, turn, traybuf );
+        XP_LOGFF( "%s", buf );
+    }
     while ( nTiles-- ) {
-        model_addPlayerTile( model, turn, -1, *tilep++ );
+         model_addPlayerTile( model, turn, -1, *tilep++ );
     }
 } /* assignPlayerTiles */
 
@@ -2467,10 +2490,10 @@ printMovePost( ModelCtxt* model, XWEnv xwe, XP_U16 XP_UNUSED(moveN),
         }
 
         if ( addCR ) {
-            printString( stream, (XP_UCHAR*)XP_CR );
+            stream_putU8( stream, '\n' );
         }
 
-        printString( stream, (XP_UCHAR*)XP_CR );
+        stream_putU8( stream, '\n' );
     }
 } /* printMovePost */
 

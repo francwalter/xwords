@@ -171,7 +171,7 @@ android {
         create("xw4GPlay") {
             dimension = "variant"
             applicationId = "de.fcw.android.xw4GPTest"
-			manifestPlaceholders["APP_ID"] = "de.fcw.android.xw4"
+            manifestPlaceholders["APP_ID"] = "de.fcw.android.xw4"
             resValue( "string", "app_name", "DoNotRelease" )
             buildConfigField( "boolean", "NON_RELEASE", "true" )
             buildConfigField( "boolean", "WIDIR_ENABLED", "false" )
@@ -186,7 +186,7 @@ android {
         create("xw4fdroid") {
             dimension = "variant"
             applicationId = "de.fcw.android.xw4"
-			manifestPlaceholders["APP_ID"] = applicationId.toString()
+            manifestPlaceholders["APP_ID"] = applicationId.toString()
             resValue( "string", "app_name", "CrossWords" )
             resValue( "string", "nbs_port", "3344" )
             buildConfigField( "boolean", "WIDIR_ENABLED", "false" )
@@ -199,7 +199,7 @@ android {
             externalNativeBuild.ndkBuild.arguments += arrayOf("XW_BT_UUID=" + XW_UUID)
         }
 
-		create("xw4d") {
+        create("xw4d") {
             dimension = "variant"
 
             buildConfigField( "String", "DB_NAME", "\"xwddb\"" )
@@ -240,7 +240,7 @@ android {
         create("xw4Foss") {
             dimension = "variant"
             applicationId = "de.fcw.android.xw4"
-			manifestPlaceholders["APP_ID"] = applicationId.toString()
+            manifestPlaceholders["APP_ID"] = applicationId.toString()
             resValue( "string", "app_name", "CrossWords" )
             resValue( "string", "nbs_port", "3344" )
             buildConfigField( "boolean", "WIDIR_ENABLED", "false" )

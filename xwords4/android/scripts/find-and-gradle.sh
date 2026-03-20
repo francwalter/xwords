@@ -3,7 +3,7 @@
 set -e -u
 
 MANIFEST=AndroidManifest.xml
-# XWORDS=org.eehouse.android.xw4
+# XWORDS=de.fcw.android.xw4
 INSTALL=''
 UNINSTALL=''
 

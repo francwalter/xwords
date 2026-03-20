@@ -3321,6 +3321,21 @@ reflectMove( ServerCtxt* server, XWEnv xwe, XWStreamCtxt* stream )
             mvStream = makeTradeReportIf( server, xwe, &tradedTiles );
         } else {
             server->vol.showPrevMove = XP_TRUE;
+            /* Log assigned tiles on the client when we receive a move from the
+               server so they show up in the client's logcat. Previously only
+               the local pool drawing code logged drawn tiles, so tiles
+               assigned to remote players by the server weren't visible in
+               the client's log. */
+            if ( newTiles.nTiles > 0 ) {
+                char buf[128];
+                int offset = 0;
+                offset += XP_SNPRINTF( buf + offset, sizeof(buf) - offset,
+                                      "Received tiles for player %d: ", whoMoved );
+                for ( XP_U16 ii = 0; ii < newTiles.nTiles && offset < (int)sizeof(buf); ++ii ) {
+                    offset += XP_SNPRINTF( buf + offset, sizeof(buf) - offset, "%d ", newTiles.tiles[ii] );
+                }
+                XP_LOGFF( "%s", buf );
+            }
             mvStream = makeMoveReportIf( server, xwe, &wordsStream );
             model_commitTurn( model, xwe, whoMoved, &newTiles );
         }
@@ -5280,7 +5295,7 @@ server_formatRemainingTiles( ServerCtxt* server, XWEnv xwe, XWStreamCtxt* stream
         stream_catString( stream, buf );
 
         stream_catString( stream, cntsBuf );
-// fcw: 2026-03-15: Änderungen von Gemini in PhpStorm auf MacBook, zum Anzeigen des Pool zusätzlich
+// fcw: show only pool also
         stream_catString( stream, "\n\nTiles in pool only:\n" );
         for ( cntsBuf[0] = '\0', offset = 0, tile = 0;
               offset < sizeof(cntsBuf); ) {

@@ -33,8 +33,8 @@ done
 
 if [ -z $VARIANT ]; then
     if [ -f AndroidManifest.xml ]; then
-        LINE=$(grep 'package="org.eehouse.android' AndroidManifest.xml)
-        VARIANT=$(echo $LINE | sed 's,.*android.\([^"]*\)",\1,')
+        LINE=$(grep 'package="de.fcw.android' AndroidManifest.xml)
+        VARIANT=$(echo $LINE | sed 's,.*android.\([^\"]*\)",\1,')
     fi
 fi
 
@@ -43,8 +43,8 @@ fi
 COUNT=0
 
 for DEVICE in $DEVICES; do
-    echo "running: adb -s $DEVICE uninstall org.eehouse.android.${VARIANT}"
-    adb -s $DEVICE uninstall org.eehouse.android.${VARIANT}
+    echo "running: adb -s $DEVICE uninstall de.fcw.android.${VARIANT}"
+    adb -s $DEVICE uninstall de.fcw.android.${VARIANT}
     COUNT=$((COUNT+1))
 done
 
