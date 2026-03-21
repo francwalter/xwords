@@ -21,6 +21,7 @@
 #include "server.h"
 #include "util.h"
 #include "model.h"
+#include "modelp.h"
 #include "comms.h"
 #include "memstream.h"
 #include "game.h"
@@ -117,6 +118,12 @@ typedef struct ServerVolatiles {
     XP_U16 bitsPerTile;
     XP_Bool showPrevMove;
     XP_Bool pickTilesCalled[MAX_NUM_PLAYERS];
+    /* Remember tiles assigned to a player when they were given after a
+       move, so that if they undo and then immediately play again they
+       can receive the same tiles (in order, truncated if they request
+       fewer).  Index by player number. */
+    TrayTileSet savedAssigned[MAX_NUM_PLAYERS];
+    XP_Bool haveSavedAssigned[MAX_NUM_PLAYERS];
 } ServerVolatiles;
 
 #define MASK_IS_FROM_REMATCH (1<<0)
@@ -1784,7 +1791,7 @@ makeRobotMove( ServerCtxt* server, XWEnv xwe )
                 // XP_ASSERT( !server->nv.prevMoveStream );
                 server->nv.prevMoveStream = stream;
             }
-        } else { 
+        } else {
             /* if canMove is false, this is a fake move, a pass */
 
             if ( canMove || NPASSES_OK(server) ) {
@@ -2783,11 +2790,36 @@ fetchTiles( ServerCtxt* server, XWEnv xwe, XP_U16 playerNum, XP_U16 nToFetch,
         nToFetch = nLeftInPool;
     }
 
-    /* Then fetch the rest without asking. But if we're in duplicate mode,
-       make sure the tray allows some moves (e.g. isn't all consonants when
-       the board's empty.) */
+    /* First, if we have saved-assigned tiles for this player (e.g. they
+       undid a previous move and those assigned tiles were saved), use
+       those in order up to the number requested.  Any remaining saved
+       tiles are kept for later and will be shifted left after consumption.
+       If no saved tiles remain, fall through to drawing from the pool. */
     if ( nToFetch >= nSoFar ) {
         XP_U16 nLeft = nToFetch - nSoFar;
+        if ( playerNum < MAX_NUM_PLAYERS && server->vol.haveSavedAssigned[playerNum] ) {
+            TrayTileSet* sa = &server->vol.savedAssigned[playerNum];
+            XP_U16 toUse = sa->nTiles < nLeft ? sa->nTiles : nLeft;
+            if ( toUse > 0 ) {
+                XP_MEMCPY( &resultTiles->tiles[nSoFar], &sa->tiles[0],
+                           toUse * sizeof(sa->tiles[0]) );
+                nLeft -= toUse;
+                nSoFar += toUse;
+                /* shift remaining saved tiles to front */
+                if ( sa->nTiles > toUse ) {
+                    XP_MEMCPY( &sa->tiles[0], &sa->tiles[toUse],
+                               (sa->nTiles - toUse) * sizeof(sa->tiles[0]) );
+                    sa->nTiles = (XP_U8)(sa->nTiles - toUse);
+                } else {
+                    sa->nTiles = 0;
+                    server->vol.haveSavedAssigned[playerNum] = XP_FALSE;
+                }
+            }
+        }
+
+        /* Then fetch the rest without asking. But if we're in duplicate mode,
+           make sure the tray allows some moves (e.g. isn't all consonants when
+           the board's empty.) */
         for ( XP_U16 nBadTrays = 0; 0 < nLeft; ) {
             pool_requestTiles( pool, &resultTiles->tiles[nSoFar], &nLeft );
 
@@ -3956,6 +3988,16 @@ finishMove( ServerCtxt* server, XWEnv xwe, TrayTileSet* newTiles, XP_U16 turn )
     XP_U16 nTilesMoved = model_getCurrentMoveCount( model, turn );
     fetchTiles( server, xwe, turn, nTilesMoved, newTiles, XP_FALSE );
 
+    /* Any savedAssigned entries for other players are no longer valid once
+       someone else draws tiles from the pool.  Clear them so they won't be
+       used later. */
+    for ( XP_U16 ii = 0; ii < server->vol.gi->nPlayers; ++ii ) {
+        if ( ii != turn ) {
+            server->vol.haveSavedAssigned[ii] = XP_FALSE;
+            server->vol.savedAssigned[ii].nTiles = 0;
+        }
+    }
+
     XP_Bool isClient = gi->serverRole == SERVER_ISCLIENT;
     XP_Bool isLegalMove = XP_TRUE;
     if ( isClient ) {
@@ -4988,6 +5030,54 @@ server_handleUndo( ServerCtxt* server, XWEnv xwe, XP_U16 limit )
     model = server->vol.model;
     gi = server->vol.gi;
     XP_ASSERT( !!model );
+
+    /* In networked games, only allow an explicit UI-requested undo if the
+       most-recent MOVE on the stack belongs to a local player (i.e. the
+       player on this device).  This enforces the rule "only undo if no
+       other player has played since" for UI undo requests while leaving
+       standalone/local behavior unchanged. */
+    if ( gi->serverRole != SERVER_STANDALONE ) {
+        StackCtxt* stack = model->vol.stack;
+        XP_U16 nEntries = stack_getNEntries( stack );
+        if ( nEntries > 0 ) {
+            StackEntry topEntry;
+            XP_Bool found = XP_FALSE;
+
+            /* Find the most-recent MOVE_TYPE entry */
+            for ( XP_S16 ii = (XP_S16)(nEntries - 1); ii >= 0; --ii ) {
+                if ( stack_getNthEntry( stack, (XP_U16)ii, &topEntry ) ) {
+                    if ( topEntry.moveType == MOVE_TYPE ) {
+                        /* If that move was not made by a local player, refuse */
+                        if ( !LP_IS_LOCAL(&gi->players[topEntry.playerNum]) ) {
+                            util_userError( server->vol.util, xwe,
+                                            ERR_CANT_UNDO_TILEASSIGN );
+                            stack_freeEntry( stack, &topEntry );
+                            return XP_FALSE;
+                        }
+                        /* Save the tiles that had been assigned to that player
+                           when they made the move so that if they immediately
+                           replay they get the same tiles in order (possibly
+                           truncated). */
+                        server->vol.savedAssigned[topEntry.playerNum] = topEntry.u.move.newTiles;
+                        server->vol.haveSavedAssigned[topEntry.playerNum] = XP_TRUE;
+                        stack_freeEntry( stack, &topEntry );
+                        found = XP_TRUE;
+                        break;
+                    }
+                    /* not a MOVE_TYPE entry; free and continue */
+                    stack_freeEntry( stack, &topEntry );
+                }
+            }
+            /* If no MOVE_TYPE found, disallow undo */
+            if ( !found ) {
+                util_userError( server->vol.util, xwe, ERR_CANT_UNDO_TILEASSIGN );
+                return XP_FALSE;
+            }
+        } else {
+            util_userError( server->vol.util, xwe, ERR_CANT_UNDO_TILEASSIGN );
+            return XP_FALSE;
+        }
+    }
 
     /* Undo until we find we've just undone a non-robot move.  The point is
        not to stop with a robot about to act (since that's a bit pointless.)

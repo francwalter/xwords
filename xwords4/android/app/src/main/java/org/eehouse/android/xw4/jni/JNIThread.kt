@@ -601,6 +601,9 @@ class JNIThread private constructor(lockIn: GameLock) : Thread(), AutoCloseable 
                         || XwJNI.board_redoReplacedTiles(mJNIGamePtr))
 
                 JNICmd.CMD_UNDO_LAST -> {
+                    // Allow undo-last to operate for standalone/local games as well.
+                    // Request the server logic to handle the undo; for local
+                    // games the server_handleUndo will operate on the local model.
                     XwJNI.server_handleUndo(mJNIGamePtr)
                     draw = true
                 }

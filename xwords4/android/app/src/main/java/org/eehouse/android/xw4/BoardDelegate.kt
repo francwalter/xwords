@@ -722,6 +722,7 @@ class BoardDelegate(delegator: Delegator) :
         var enable: Boolean
         mGsi?.let { gsi ->
             inTrade = gsi.inTrade
+            val netGame = (null != mGi && DeviceRole.SERVER_STANDALONE != mGi!!.serverRole)
             menu.setGroupVisible(R.id.group_done, !inTrade)
             menu.setGroupVisible(R.id.group_exchange, inTrade)
             strId = if (UtilCtxt.TRAY_REVEALED == gsi.trayVisState) {
@@ -763,6 +764,9 @@ class BoardDelegate(delegator: Delegator) :
                 menu, R.id.board_menu_trade,
                 gsi.canTrade
             )
+            // Allow undo-last even for local/standalone games. The JNIThread
+            // now routes the request to server_handleUndo which will operate
+            // on the local model for standalone games.
             Utils.setItemVisible(
                 menu, R.id.board_menu_undo_last,
                 gsi.canUndo
